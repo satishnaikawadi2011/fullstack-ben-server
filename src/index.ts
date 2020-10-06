@@ -1,3 +1,4 @@
+import { PostResolver } from './resolvers/post';
 //TODO: psql -U postgres
 import 'reflect-metadata';
 import { HelloResolver } from './resolvers/hello';
@@ -23,10 +24,12 @@ const main = async () => {
 			await buildSchema({
 				resolvers:
 					[
-						HelloResolver
+						HelloResolver,
+						PostResolver
 					],
 				validate: false
-			})
+			}),
+		context: () => ({ em: orm.em })
 	});
 
 	apolloServer.applyMiddleware({ app });
