@@ -1,3 +1,4 @@
+import { User } from './entities/User';
 import { __prod__ } from './constants';
 import { Post } from './entities/Post';
 import { MikroORM } from '@mikro-orm/core';
@@ -11,7 +12,8 @@ export default {
 		},
 	entities:
 		[
-			Post
+			Post,
+			User
 		],
 	dbName: 'fullstack_ben',
 	type: 'postgresql',

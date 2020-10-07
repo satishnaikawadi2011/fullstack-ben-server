@@ -1,3 +1,4 @@
+import { UserResolver } from './resolvers/user';
 import { PostResolver } from './resolvers/post';
 //TODO: psql -U postgres
 import 'reflect-metadata';
@@ -25,7 +26,8 @@ const main = async () => {
 				resolvers:
 					[
 						HelloResolver,
-						PostResolver
+						PostResolver,
+						UserResolver
 					],
 				validate: false
 			}),
