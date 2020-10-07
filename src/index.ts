@@ -10,13 +10,13 @@ import { PostResolver } from './resolvers/post';
 
 import 'reflect-metadata';
 import { HelloResolver } from './resolvers/hello';
-import { Post } from './entities/Post';
 import { __prod__ } from './constants';
 import { MikroORM } from '@mikro-orm/core';
 import mikroConfig from './mikro-orm.config';
 import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
+import cors from 'cors';
 
 import redis from 'redis';
 import session from 'express-session';
@@ -33,10 +33,16 @@ const main = async () => {
 
 	let RedisStore = connectRedis(session);
 	let redisClient = redis.createClient();
-
+	app.use(
+		cors({
+			origin: 'http://localhost:3000',
+			credentials: true
+		})
+	);
 	app.use(
 		session({
 			name: 'qid',
+			saveUninitialized: false,
 			store:
 				new RedisStore({
 					client: redisClient,
@@ -66,10 +72,10 @@ const main = async () => {
 					],
 				validate: false
 			}),
-		context: ({ req, res }): MyContext => ({ em: orm.em, req, res })
+		context: ({ req, res }) => ({ em: orm.em, req, res })
 	});
 
-	apolloServer.applyMiddleware({ app });
+	apolloServer.applyMiddleware({ app, cors: false });
 
 	app.listen(PORT, () => {
 		console.log(`Server listening on port ${PORT}`);
