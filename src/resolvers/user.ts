@@ -1,3 +1,5 @@
+import { SignUpEmail } from './../utils/emailSending/emailTemplates';
+import { sendEmail } from './../utils/emailSending/sendEmail';
 import { validateLogin } from './../utils/validators/validateLogin';
 import { handleRegistererrors } from '../utils/validators/registerErrorHandling';
 import { User } from './../entities/User';
@@ -44,6 +46,14 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+	@Mutation(() => Boolean)
+	async forgotPassword(@Arg('email') email: string, @Ctx() { req }: MyContext) {
+		const user = await User.findOne({ email });
+		if (!user) {
+			return true;
+		}
+	}
+
 	@Query(() => User, { nullable: true })
 	async me(@Ctx() { req }: MyContext) {
 		// Not logged in
@@ -64,6 +74,7 @@ export class UserResolver {
 		}
 		const hashedPassword = await argon2.hash(password);
 		const user = await User.create({ username, password: hashedPassword, email }).save();
+		sendEmail({ to: email, subject: SignUpEmail.subject, html: SignUpEmail.html });
 		req.session.userId = user.id;
 		return { user };
 	}
