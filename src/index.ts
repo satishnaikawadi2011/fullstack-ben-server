@@ -13,7 +13,7 @@ import { HelloResolver } from './resolvers/hello';
 import { __prod__ } from './constants';
 import { MikroORM } from '@mikro-orm/core';
 import mikroConfig from './mikro-orm.config';
-import express from 'express';
+import express, { text } from 'express';
 import { ApolloServer } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
 import cors from 'cors';
@@ -21,9 +21,11 @@ import cors from 'cors';
 import redis from 'redis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
+// import { sendEmail } from './utils/sendEmail';
 
 const PORT = process.env.PORT || 4000;
 const main = async () => {
+	// await sendEmail('saty@gmail.com', 'testing mail');
 	const orm = await MikroORM.init(mikroConfig);
 	await orm.getMigrator().up();
 	const app = express();
