@@ -1,3 +1,4 @@
+import { FORGOT_PASSWORD_PREFIX } from './../constants';
 import { SignUpEmail } from './../utils/emailSending/emailTemplates';
 import { sendEmail } from './../utils/emailSending/sendEmail';
 import { validateLogin } from './../utils/validators/validateLogin';
@@ -6,6 +7,7 @@ import { User } from './../entities/User';
 import { MyContext } from './../types';
 import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from 'type-graphql';
 import argon2 from 'argon2';
+import { v4 } from 'uuid';
 
 @InputType()
 class RegisterInput {
@@ -46,12 +48,69 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+	@Mutation(() => UserResponse)
+	async changePassword(
+		@Arg('newPassword') newPassword: string,
+		@Arg('token') token: string,
+		@Ctx() { redis, req }: MyContext
+	): Promise<UserResponse> {
+		if (newPassword.length <= 5) {
+			return {
+				errors:
+					[
+						{
+							field: 'newPassword',
+							message: 'Length of new password must be grater than 5!'
+						}
+					]
+			};
+		}
+
+		const userId = await redis.get(FORGOT_PASSWORD_PREFIX + token);
+		if (!userId) {
+			return {
+				errors:
+					[
+						{
+							field: 'token',
+							message: 'Token expired !'
+						}
+					]
+			};
+		}
+		const user = await User.findOne({ id: parseInt(userId) });
+		if (!user) {
+			return {
+				errors:
+					[
+						{
+							field: 'token',
+							message: 'user does not exists!'
+						}
+					]
+			};
+		}
+		const hashedPassword = await argon2.hash(newPassword);
+		await User.update({ id: parseInt(userId) }, { password: hashedPassword });
+		await redis.del(FORGOT_PASSWORD_PREFIX + token);
+		req.session.userId = user.id;
+		return { user };
+	}
+
 	@Mutation(() => Boolean)
-	async forgotPassword(@Arg('email') email: string, @Ctx() { req }: MyContext) {
+	async forgotPassword(@Arg('email') email: string, @Ctx() { redis }: MyContext) {
 		const user = await User.findOne({ email });
 		if (!user) {
 			return true;
 		}
+		const token = v4();
+		await redis.set(FORGOT_PASSWORD_PREFIX + token, user.id, 'ex', 1000 * 60 * 60 * 24 * 3); //3 days
+		sendEmail({
+			to: email,
+			subject: 'Change Password',
+			html: `<a href="http://localhost:3000/change-password/${token}">Reset password</a>`
+		});
+		return true;
 	}
 
 	@Query(() => User, { nullable: true })

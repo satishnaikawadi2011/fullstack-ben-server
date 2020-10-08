@@ -18,7 +18,7 @@ import { buildSchema } from 'type-graphql';
 import cors from 'cors';
 import { createConnection } from 'typeorm';
 
-import redis from 'redis';
+import Redis from 'ioredis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 
@@ -42,7 +42,7 @@ const main = async () => {
 	const app = express();
 
 	let RedisStore = connectRedis(session);
-	let redisClient = redis.createClient();
+	let redis = new Redis();
 	app.use(
 		cors({
 			origin: 'http://localhost:3000',
@@ -55,7 +55,7 @@ const main = async () => {
 			saveUninitialized: false,
 			store:
 				new RedisStore({
-					client: redisClient,
+					client: redis,
 					disableTouch: true
 					// disableTTL:true
 				}),
@@ -82,7 +82,7 @@ const main = async () => {
 					],
 				validate: false
 			}),
-		context: ({ req, res }) => ({ req, res })
+		context: ({ req, res }) => ({ req, res, redis })
 	});
 
 	apolloServer.applyMiddleware({ app, cors: false });
