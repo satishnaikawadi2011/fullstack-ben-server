@@ -37,6 +37,8 @@ const main = async () => {
 				User
 			]
 	});
+	// await User.delete({});
+	// await Post.delete({});
 	const app = express();
 
 	let RedisStore = connectRedis(session);

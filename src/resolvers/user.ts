@@ -1,3 +1,5 @@
+import { validateLogin } from './../utils/validators/validateLogin';
+import { handleRegistererrors } from '../utils/validators/registerErrorHandling';
 import { User } from './../entities/User';
 import { MyContext } from './../types';
 import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from 'type-graphql';
@@ -5,6 +7,15 @@ import argon2 from 'argon2';
 
 @InputType()
 class RegisterInput {
+	@Field() username: string;
+
+	@Field() password: string;
+
+	@Field() email: string;
+}
+
+@InputType()
+class LoginInput {
 	@Field() username: string;
 
 	@Field() password: string;
@@ -46,76 +57,28 @@ export class UserResolver {
 
 	@Mutation(() => UserResponse)
 	async register(@Arg('options') options: RegisterInput, @Ctx() { req }: MyContext): Promise<UserResponse> {
-		const { username, password } = options;
-		const existingUser = await User.findOne({ username });
-		if (existingUser) {
-			return {
-				errors:
-					[
-						{
-							field: 'username',
-							message: 'username already taken  !!'
-						}
-					]
-			};
-		}
-		if (username.length <= 2) {
-			return {
-				errors:
-					[
-						{
-							field: 'username',
-							message: 'username length must be greater than 2 !!'
-						}
-					]
-			};
-		}
-
-		if (password.length <= 5) {
-			return {
-				errors:
-					[
-						{
-							field: 'password',
-							message: 'password length must be greater than 5 !!'
-						}
-					]
-			};
+		const { username, password, email } = options;
+		const { isValid, errors } = await handleRegistererrors({ email, password, username });
+		if (!isValid) {
+			return { errors };
 		}
 		const hashedPassword = await argon2.hash(password);
-		const user = await User.create({ username, password: hashedPassword }).save();
+		const user = await User.create({ username, password: hashedPassword, email }).save();
 		req.session.userId = user.id;
 		return { user };
 	}
 
 	@Mutation(() => UserResponse)
-	async login(@Arg('options') options: RegisterInput, @Ctx() { req }: MyContext): Promise<UserResponse> {
+	async login(@Arg('options') options: LoginInput, @Ctx() { req }: MyContext): Promise<UserResponse> {
 		const { username, password } = options;
 		const user = await User.findOne({ username });
-		if (!user) {
-			return {
-				errors:
-					[
-						{
-							field: 'username',
-							message: 'User with this username could not exist !'
-						}
-					]
-			};
+		const { isValid, errors } = await validateLogin({ password, user });
+		if (!isValid) {
+			return { errors };
 		}
-		const valid = await argon2.verify(user.password, password);
-		if (!valid) {
-			return {
-				errors:
-					[
-						{
-							field: 'password',
-							message: 'Incorrect password !'
-						}
-					]
-			};
+		if (user) {
+			req.session.userId = user.id;
 		}
-		req.session.userId = user.id;
 		return {
 			user
 		};
