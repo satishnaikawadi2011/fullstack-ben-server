@@ -41,10 +41,13 @@ export class PostResolver {
 		if (!post) {
 			return null;
 		}
+		// console.log('POST+++++++', { ...post });
+
 		if (typeof title !== 'undefined') {
-			// post.title = title;
 			await Post.update({ id }, { title });
+			// console.log(updatedPost);
 		}
+		post.title = title;
 		return post;
 	}
 
