@@ -1,4 +1,5 @@
-import { MyContext } from './types';
+import { User } from './entities/User';
+import { Post } from './entities/Post';
 import { UserResolver } from './resolvers/user';
 import { PostResolver } from './resolvers/post';
 
@@ -11,27 +12,32 @@ import { PostResolver } from './resolvers/post';
 import 'reflect-metadata';
 import { HelloResolver } from './resolvers/hello';
 import { __prod__ } from './constants';
-import { MikroORM } from '@mikro-orm/core';
-import mikroConfig from './mikro-orm.config';
-import express, { text } from 'express';
+import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
 import cors from 'cors';
+import { createConnection } from 'typeorm';
 
 import redis from 'redis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
-// import { sendEmail } from './utils/sendEmail';
 
 const PORT = process.env.PORT || 4000;
 const main = async () => {
-	// await sendEmail('saty@gmail.com', 'testing mail');
-	const orm = await MikroORM.init(mikroConfig);
-	await orm.getMigrator().up();
+	const conn = await createConnection({
+		type: 'postgres',
+		database: 'ben_awad_fullstack_2',
+		username: 'postgres',
+		password: 'postgres',
+		logging: true,
+		synchronize: true,
+		entities:
+			[
+				Post,
+				User
+			]
+	});
 	const app = express();
-	// app.get('/', (req, res) => {
-	// 	res.send('Hello');
-	// });
 
 	let RedisStore = connectRedis(session);
 	let redisClient = redis.createClient();
@@ -74,7 +80,7 @@ const main = async () => {
 					],
 				validate: false
 			}),
-		context: ({ req, res }) => ({ em: orm.em, req, res })
+		context: ({ req, res }) => ({ req, res })
 	});
 
 	apolloServer.applyMiddleware({ app, cors: false });
