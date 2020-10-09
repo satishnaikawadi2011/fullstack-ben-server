@@ -82,7 +82,7 @@ const main = async () => {
 					],
 				validate: false
 			}),
-		context: ({ req, res }) => ({ req, res, redis })
+		context: ({ req, res }) => ({ req, res, redis,connection:conn })
 	});
 
 	apolloServer.applyMiddleware({ app, cors: false });

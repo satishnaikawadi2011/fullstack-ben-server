@@ -3,13 +3,16 @@ import { MyContext } from './../types';
 import { Post } from './../entities/Post';
 import { Arg, Ctx, Query, Resolver, Int, Mutation, UseMiddleware } from 'type-graphql';
 
-@Resolver()
+@Resolver(Post)
 export class PostResolver {
 	@Query(() => [
 		Post
 	])
-	posts(@Ctx() ctx: MyContext): Promise<Post[]> {
-		return Post.find();
+	async posts(@Ctx() {connection}: MyContext): Promise<Post[]> {
+		// return Post.find();
+		const postRepository = connection.getRepository(Post);
+		const posts = await postRepository.find({ relations: ["creator"] });
+		return posts;
 	}
 
 	@Query(() => Post, { nullable: true })

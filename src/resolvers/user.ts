@@ -5,7 +5,7 @@ import { validateLogin } from './../utils/validators/validateLogin';
 import { handleRegistererrors } from '../utils/validators/registerErrorHandling';
 import { User } from './../entities/User';
 import { MyContext } from './../types';
-import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from 'type-graphql';
+import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query, FieldResolver, Root } from 'type-graphql';
 import argon2 from 'argon2';
 import { v4 } from 'uuid';
 
@@ -46,8 +46,17 @@ class UserResponse {
 	user?: User;
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
+
+	@FieldResolver(() => String)
+	email(@Root() user:User,@Ctx() {req}:MyContext){
+		if(req.session.userId === user.id){
+			return user.email
+		}
+		return ""
+	}
+
 	@Mutation(() => UserResponse)
 	async changePassword(
 		@Arg('newPassword') newPassword: string,

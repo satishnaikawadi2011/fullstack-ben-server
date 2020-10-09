@@ -25,6 +25,10 @@ export class Post extends BaseEntity {
 	@UpdateDateColumn()
 	updatedAt: Date;
 
+	@Field(() => User)
+	@ManyToOne(() => User, (user) => user.posts)
+	creator: User;
+
 	@Field()
 	@Column()
 	creatorId: number;
@@ -40,7 +44,4 @@ export class Post extends BaseEntity {
 	@Field(() => Int)
 	@Column({ type: 'int', default: 0 })
 	points: number;
-
-	@ManyToOne(() => User, (user) => user.posts)
-	creator: User;
 }
