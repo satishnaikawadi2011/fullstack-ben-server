@@ -5,9 +5,11 @@ import { validateLogin } from './../utils/validators/validateLogin';
 import { handleRegistererrors } from '../utils/validators/registerErrorHandling';
 import { User } from './../entities/User';
 import { MyContext } from './../types';
-import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query, FieldResolver, Root } from 'type-graphql';
+import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query, FieldResolver, Root, Subscription } from 'type-graphql';
 import argon2 from 'argon2';
 import { v4 } from 'uuid';
+import { subscribe } from 'graphql';
+import { withFilter } from 'apollo-server-express';
 
 @InputType()
 class RegisterInput {
@@ -161,6 +163,18 @@ export class UserResolver {
 		return {
 			user
 		};
+	}
+
+	@Subscription({
+		topics:'NEW_USER',
+		filter:({payload,args}) => {console.log(payload,args)
+		return true
+		}
+	})
+	newUser(
+		@Root() userPayload:User 
+	):User{
+		return userPayload
 	}
 
 	@Mutation(() => Boolean)

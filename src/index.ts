@@ -11,9 +11,10 @@ import { PostResolver } from './resolvers/post';
 
 import 'reflect-metadata';
 import { HelloResolver } from './resolvers/hello';
+import {createServer} from 'http'
 import { __prod__ } from './constants';
 import express from 'express';
-import { ApolloServer } from 'apollo-server-express';
+import { ApolloServer,PubSub } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
 import cors from 'cors';
 import { createConnection } from 'typeorm';
@@ -22,6 +23,7 @@ import Redis from 'ioredis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 
+const pubsub = new PubSub()
 const PORT = process.env.PORT || 4000;
 const main = async () => {
 	const conn = await createConnection({
@@ -82,13 +84,16 @@ const main = async () => {
 					],
 				validate: false
 			}),
-		context: ({ req, res }) => ({ req, res, redis,connection:conn })
+		context: ({ req, res }) => ({ req, res, redis,connection:conn,pubsub })
 	});
 
 	apolloServer.applyMiddleware({ app, cors: false });
-
-	app.listen(PORT, () => {
-		console.log(`Server listening on port ${PORT}`);
+	const httpServer = createServer(app)
+	apolloServer.installSubscriptionHandlers(httpServer)
+	httpServer.listen(PORT, () => {
+		// console.log(`Server listening on port ${PORT}`);
+		console.log(`🚀 Server ready at http://localhost:${PORT}${apolloServer.graphqlPath}`)
+		console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}${apolloServer.subscriptionsPath}`)
 	});
 	// const post = orm.em.create(Post, { title: 'Hey,this is first post !' });
 	// await orm.em.persistAndFlush(post);
