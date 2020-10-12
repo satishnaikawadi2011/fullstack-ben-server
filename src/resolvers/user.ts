@@ -5,11 +5,9 @@ import { validateLogin } from './../utils/validators/validateLogin';
 import { handleRegistererrors } from '../utils/validators/registerErrorHandling';
 import { User } from './../entities/User';
 import { MyContext } from './../types';
-import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query, FieldResolver, Root, Subscription } from 'type-graphql';
+import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query, FieldResolver, Root, Subscription, PubSub, PubSubEngine } from 'type-graphql';
 import argon2 from 'argon2';
 import { v4 } from 'uuid';
-import { subscribe } from 'graphql';
-import { withFilter } from 'apollo-server-express';
 
 @InputType()
 class RegisterInput {
@@ -136,7 +134,7 @@ export class UserResolver {
 	}
 
 	@Mutation(() => UserResponse)
-	async register(@Arg('options') options: RegisterInput, @Ctx() { req }: MyContext): Promise<UserResponse> {
+	async register(@Arg('options') options: RegisterInput, @PubSub() pubsub:PubSubEngine ,@Ctx() { req }: MyContext): Promise<UserResponse> {
 		const { username, password, email } = options;
 		const { isValid, errors } = await handleRegistererrors({ email, password, username });
 		if (!isValid) {
@@ -145,12 +143,16 @@ export class UserResolver {
 		const hashedPassword = await argon2.hash(password);
 		const user = await User.create({ username, password: hashedPassword, email }).save();
 		sendEmail({ to: email, subject: SignUpEmail.subject, html: SignUpEmail.html });
+		// console.log('====================================');
+		// console.log(req.session);
+		// console.log('====================================');
 		req.session.userId = user.id;
+		await pubsub.publish('NEW_USER',user)
 		return { user };
 	}
 
 	@Mutation(() => UserResponse)
-	async login(@Arg('options') options: LoginInput, @Ctx() { req }: MyContext): Promise<UserResponse> {
+	async login(@Arg('options') options: LoginInput,@Ctx() { req }: MyContext): Promise<UserResponse> {
 		const { username, password } = options;
 		const user = await User.findOne({ username });
 		const { isValid, errors } = await validateLogin({ password, user });
@@ -167,13 +169,14 @@ export class UserResolver {
 
 	@Subscription({
 		topics:'NEW_USER',
-		filter:({payload,args}) => {console.log(payload,args)
-		return true
-		}
 	})
 	newUser(
-		@Root() userPayload:User 
+		@Root() userPayload:User,
+		// @Ctx()ctx:MyContext 
 	):User{
+		// console.log('====================================');
+		// console.log(ctx);
+		// console.log('====================================');
 		return userPayload
 	}
 

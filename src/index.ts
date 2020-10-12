@@ -1,3 +1,4 @@
+import { sessionMiddleware, redis } from './utils/middlewares/session';
 import { User } from './entities/User';
 import { Post } from './entities/Post';
 import { UserResolver } from './resolvers/user';
@@ -11,6 +12,7 @@ import { PostResolver } from './resolvers/post';
 
 import 'reflect-metadata';
 import { HelloResolver } from './resolvers/hello';
+import  {SampleResolver} from './resolvers/example';
 import {createServer} from 'http'
 import { __prod__ } from './constants';
 import express from 'express';
@@ -18,10 +20,6 @@ import { ApolloServer,PubSub } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
 import cors from 'cors';
 import { createConnection } from 'typeorm';
-
-import Redis from 'ioredis';
-import session from 'express-session';
-import connectRedis from 'connect-redis';
 
 const pubsub = new PubSub()
 const PORT = process.env.PORT || 4000;
@@ -42,9 +40,6 @@ const main = async () => {
 	// await User.delete({});
 	// await Post.delete({});
 	const app = express();
-
-	let RedisStore = connectRedis(session);
-	let redis = new Redis();
 	app.use(
 		cors({
 			origin: 'http://localhost:3000',
@@ -52,25 +47,7 @@ const main = async () => {
 		})
 	);
 	app.use(
-		session({
-			name: 'qid',
-			saveUninitialized: false,
-			store:
-				new RedisStore({
-					client: redis,
-					disableTouch: true
-					// disableTTL:true
-				}),
-			cookie:
-				{
-					maxAge: 1000 * 60 * 60 * 24 * 365 * 10, //10 years
-					httpOnly: true,
-					secure: __prod__, //cookie only works in https
-					sameSite: 'lax'
-				},
-			secret: 'this_is_my_secret',
-			resave: false
-		})
+		sessionMiddleware
 	);
 
 	const apolloServer = new ApolloServer({
@@ -80,11 +57,23 @@ const main = async () => {
 					[
 						HelloResolver,
 						PostResolver,
-						UserResolver
+						UserResolver,
+						SampleResolver
 					],
 				validate: false
 			}),
-		context: ({ req, res }) => ({ req, res, redis,connection:conn,pubsub })
+		context: ({ req, res }) => ({ req, res, redis,connection:conn,pubsub }),
+		subscriptions:{
+			onConnect:(_,ws:any) =>  {
+				// console.log(ws.upgradeReq);
+				sessionMiddleware(ws.upgradeReq,{} as any,() => {
+					// console.log(ws.upgradeReq.session);
+					if(!ws.upgradeReq.session.userId){
+						throw new Error("Not authenticated!")
+					}
+				})
+			}
+		}
 	});
 
 	apolloServer.applyMiddleware({ app, cors: false });
@@ -95,10 +84,6 @@ const main = async () => {
 		console.log(`🚀 Server ready at http://localhost:${PORT}${apolloServer.graphqlPath}`)
 		console.log(`🚀 Subscriptions ready at ws://localhost:${PORT}${apolloServer.subscriptionsPath}`)
 	});
-	// const post = orm.em.create(Post, { title: 'Hey,this is first post !' });
-	// await orm.em.persistAndFlush(post);
-	// const posts = await orm.em.find(Post, {});
-	// console.log(posts);
 };
 
 main().catch((err) => {
